@@ -250,7 +250,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 ## Zed
 - Reads the signed-in Zed editor session from the macOS Keychain (`credentials_url` / `https://zed.dev`).
 - Calls `GET https://cloud.zed.dev/client/users/me` for plan, billing cycle, Edit Predictions quota, and overdue invoice flag.
-- Optional dashboard cookies (Chrome/manual, default Off) call `GET https://cloud.zed.dev/frontend/billing/usage` for live token spend — experimental and undocumented.
+- Optional dashboard cookies (Auto from installed browsers or Manual paste, default Off) call `GET https://cloud.zed.dev/frontend/billing/usage` for live token spend — requires `zed.session` cookie; experimental and undocumented.
 - Sign in to Zed editor first; dashboard browser login is separate for token meters.
 - Details: `docs/zed.md`.
 

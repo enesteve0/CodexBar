@@ -54,33 +54,52 @@ struct ZedLocalFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let probe = ZedStatusProbe()
         let snapshot = try await probe.fetch()
+        let cookieSource = context.settings?.zed?.cookieSource ?? .off
         let billing = await self.fetchBilling(context: context)
-        return self.makeResult(
-            usage: snapshot.toUsageSnapshot(tokenBilling: billing),
-            sourceLabel: billing == nil ? "local" : "local+zed-dashboard")
+        let usage = snapshot.toUsageSnapshot(
+            tokenBilling: billing.snapshot,
+            dashboardCookieSource: cookieSource,
+            billingError: billing.errorMessage)
+        let sourceLabel = if billing.snapshot != nil {
+            "local+zed-dashboard"
+        } else if cookieSource != .off, billing.errorMessage != nil {
+            "local (dashboard auth failed)"
+        } else {
+            "local"
+        }
+        return self.makeResult(usage: usage, sourceLabel: sourceLabel)
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         false
     }
 
-    private func fetchBilling(context: ProviderFetchContext) async -> ZedTokenBillingSnapshot? {
+    private struct BillingFetchOutcome: Sendable {
+        let snapshot: ZedTokenBillingSnapshot?
+        let errorMessage: String?
+    }
+
+    private func fetchBilling(context: ProviderFetchContext) async -> BillingFetchOutcome {
         let settings = context.settings?.zed
         let cookieSource = settings?.cookieSource ?? .off
-        guard cookieSource != .off else { return nil }
+        guard cookieSource != .off else {
+            return BillingFetchOutcome(snapshot: nil, errorMessage: nil)
+        }
 
         do {
-            return try await ZedDashboardBillingFetcher.fetch(
+            let snapshot = try await ZedDashboardBillingFetcher.fetch(
                 browserDetection: context.browserDetection,
                 cookieSource: cookieSource,
                 manualCookieHeader: settings?.manualCookieHeader,
                 timeout: context.webTimeout,
                 logger: context.verbose ? { print($0) } : nil)
+            return BillingFetchOutcome(snapshot: snapshot, errorMessage: nil)
         } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             if context.verbose {
-                print("[zed-dashboard] Optional billing enrichment unavailable: \(error.localizedDescription)")
+                print("[zed-dashboard] Billing enrichment failed: \(message)")
             }
-            return nil
+            return BillingFetchOutcome(snapshot: nil, errorMessage: message)
         }
     }
 }

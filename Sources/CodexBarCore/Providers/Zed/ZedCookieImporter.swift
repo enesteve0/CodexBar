@@ -8,13 +8,6 @@ private let zedCookieImportOrder: BrowserCookieImportOrder =
 
 public enum ZedCookieImporter {
     private static let cookieClient = BrowserCookieClient()
-    private static let sessionCookieNames: Set<String> = [
-        "session",
-        "__Host-session",
-        "__Secure-session",
-        "zed_session",
-        "__Secure-zed_session",
-    ]
     private static let cookieDomains = [
         "cloud.zed.dev",
         "dashboard.zed.dev",
@@ -104,13 +97,13 @@ public enum ZedCookieImporter {
             var sessions: [SessionInfo] = []
             for source in sources where !source.records.isEmpty {
                 let filteredRecords = if requireKnownSessionName {
-                    source.records.filter { Self.sessionCookieNames.contains($0.name) }
+                    source.records.filter { ZedCookieHeader.isSessionCookieName($0.name) }
                 } else {
                     source.records
                 }
                 guard !filteredRecords.isEmpty else { continue }
                 let cookies = BrowserCookieClient.makeHTTPCookies(filteredRecords, origin: query.origin)
-                guard !cookies.isEmpty else { continue }
+                guard !cookies.isEmpty, ZedCookieHeader.hasSessionCookie(cookies) else { continue }
                 let labelSuffix = requireKnownSessionName ? "session cookies" : "domain cookies"
                 log("Found \(cookies.count) Zed dashboard \(labelSuffix) in \(source.label)")
                 sessions.append(SessionInfo(

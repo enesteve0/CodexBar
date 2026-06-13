@@ -3,6 +3,9 @@ import Foundation
 import Testing
 
 struct ZedDashboardBillingTests {
+    private static let redactedSessionCookie =
+        #"zed.session=redacted-token={"sid":"fake-session-id"}; __cf_bm=redacted-cloudflare"#
+
     private static func proResponse() throws -> ZedAuthenticatedUserResponse {
         let url = Bundle.module.url(
             forResource: "users-me-pro",
@@ -28,16 +31,19 @@ struct ZedDashboardBillingTests {
     }
 
     @Test
-    func `off source preserves phase one static token labels`() async throws {
+    func `off source preserves neutral token placeholders`() async throws {
         let billing = try await ZedDashboardBillingFetcher.fetch(
             browserDetection: BrowserDetection(),
             cookieSource: .off,
             manualCookieHeader: nil)
         let snapshot = try ZedUsageSnapshot(response: Self.proResponse()).toUsageSnapshot(tokenBilling: billing)
+        let spendNote = snapshot.extraRateWindows?.first(where: { $0.id == "zed.token-spend-note" })
+        let tokenCredits = snapshot.extraRateWindows?.first(where: { $0.id == "zed.token-credits" })
 
         #expect(billing == nil)
-        #expect(snapshot.extraRateWindows?.contains(where: { $0.id == "zed.token-spend-note" }) == true)
-        #expect(snapshot.extraRateWindows?.first(where: { $0.id == "zed.token-credits" })?.usageKnown == false)
+        #expect(spendNote?.usageKnown == true)
+        #expect(spendNote?.window.resetDescription == "Sign in on dashboard or enable cookies")
+        #expect(tokenCredits?.usageKnown == true)
     }
 
     @Test
@@ -48,6 +54,36 @@ struct ZedDashboardBillingTests {
                 cookieSource: .manual,
                 manualCookieHeader: "  ")
         }
+    }
+
+    @Test
+    func `cloudflare only manual cookie is rejected`() async {
+        await #expect(throws: ZedDashboardBillingError.missingSessionCookie) {
+            _ = try await ZedDashboardBillingFetcher.fetch(
+                browserDetection: BrowserDetection(),
+                cookieSource: .manual,
+                manualCookieHeader: "__cf_bm=only-cloudflare")
+        }
+    }
+
+    @Test
+    func `legacy session cookie without zed dot session is rejected`() async {
+        await #expect(throws: ZedDashboardBillingError.missingSessionCookie) {
+            _ = try await ZedDashboardBillingFetcher.fetch(
+                browserDetection: BrowserDetection(),
+                cookieSource: .manual,
+                manualCookieHeader: "session=legacy-only")
+        }
+    }
+
+    @Test
+    func `zed session cookie header filters ancillary cookies`() {
+        let filtered = ZedCookieHeader.filteredBillingHeader(from: Self.redactedSessionCookie)
+
+        #expect(filtered == #"zed.session=redacted-token={"sid":"fake-session-id"}; __cf_bm=redacted-cloudflare"#)
+        #expect(ZedCookieHeader.hasSessionCookie(Self.redactedSessionCookie))
+        #expect(ZedCookieHeader.isCloudflareOnly("__cf_bm=only") == true)
+        #expect(ZedCookieHeader.isCloudflareOnly(Self.redactedSessionCookie) == false)
     }
 
     @Test
@@ -74,7 +110,7 @@ struct ZedDashboardBillingTests {
         let fixture = try Self.fixtureData(named: "billing-usage-pro")
         let transport = ProviderHTTPTransportStub { request in
             #expect(request.url?.absoluteString == ZedDashboardBillingFetcher.billingUsageURL.absoluteString)
-            #expect(request.value(forHTTPHeaderField: "Cookie") == "session=redacted")
+            #expect(request.value(forHTTPHeaderField: "Cookie") == #"zed.session=redacted"#)
             let response = HTTPURLResponse(
                 url: request.url!,
                 statusCode: 200,
@@ -86,7 +122,7 @@ struct ZedDashboardBillingTests {
         let billing = try await ZedDashboardBillingFetcher.fetch(
             browserDetection: BrowserDetection(),
             cookieSource: .manual,
-            manualCookieHeader: "session=redacted",
+            manualCookieHeader: "zed.session=redacted; _rdt_uuid=tracking",
             transport: transport)
 
         #expect(billing?.spentUSD == 1.25)
@@ -125,11 +161,26 @@ struct ZedDashboardBillingTests {
     }
 
     @Test
-    func `parse failure keeps phase one labels when billing is nil`() throws {
+    func `billing error replaces placeholders when cookies enabled`() throws {
+        let error = try #require(ZedDashboardBillingError.unauthorized.errorDescription)
+        let snapshot = try ZedUsageSnapshot(response: Self.proResponse()).toUsageSnapshot(
+            tokenBilling: nil,
+            dashboardCookieSource: .manual,
+            billingError: error)
+        let errorWindow = snapshot.extraRateWindows?.first(where: { $0.id == "zed.token-billing-error" })
+
+        #expect(snapshot.extraRateWindows?.contains(where: { $0.id == "zed.token-spend-note" }) == false)
+        #expect(errorWindow?.usageKnown == false)
+        #expect(errorWindow?.window.resetDescription == error)
+    }
+
+    @Test
+    func `cookies off keeps neutral placeholders when billing is nil`() throws {
         let snapshot = try ZedUsageSnapshot(response: Self.proResponse()).toUsageSnapshot(tokenBilling: nil)
 
         #expect(snapshot.extraRateWindows?.contains(where: { $0.id == "zed.token-spend-note" }) == true)
-        #expect(snapshot.extraRateWindows?.first(where: { $0.id == "zed.token-credits" })?.usageKnown == false)
+        #expect(snapshot.extraRateWindows?.first(where: { $0.id == "zed.token-credits" })?.usageKnown == true)
+        #expect(snapshot.extraRateWindows?.contains(where: { $0.id == "zed.token-billing-error" }) == false)
     }
 
     @Test
@@ -147,7 +198,7 @@ struct ZedDashboardBillingTests {
             _ = try await ZedDashboardBillingFetcher.fetch(
                 browserDetection: BrowserDetection(),
                 cookieSource: .manual,
-                manualCookieHeader: "session=redacted",
+                manualCookieHeader: "zed.session=redacted",
                 transport: transport)
         }
     }

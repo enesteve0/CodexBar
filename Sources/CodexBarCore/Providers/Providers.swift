@@ -261,13 +261,9 @@ public enum ProviderBrowserCookieDefaults {
         #endif
     }
 
-    /// Zed dashboard billing is normally accessed through Chrome. Keep automatic import narrow so opting in
-    /// does not probe unrelated browser keychains.
+    /// Zed dashboard billing sessions live in the user's normal browser. Match Mistral/Claude import order
+    /// so Auto can find Safari, Chrome, Firefox, Edge, and Chromium variants.
     public static var zedCookieImportOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome]
-        #else
-        nil
-        #endif
+        defaultImportOrder
     }
 }

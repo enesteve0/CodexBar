@@ -60,17 +60,28 @@ Orb invoice history remains embedded in the dashboard UI, but **token spend mete
 
 **Auth:** Dashboard browser session cookies on `cloud.zed.dev` / `zed.dev` / `dashboard.zed.dev`. Editor Keychain tokens do **not** authenticate this route.
 
-**Fragility:** Undocumented frontend API; schema may change without notice. CodexBar labels this path experimental and falls back to Phase 1 static labels on any failure.
+**Fragility:** Undocumented frontend API; schema may change without notice. CodexBar labels this path experimental and falls back to Phase 1 static labels when dashboard cookies are off. When cookies are on, billing failures surface in the menu card and settings UI.
+
+### Manual cookie verification (curl)
+
+```bash
+curl -s 'https://cloud.zed.dev/frontend/billing/usage' \
+  -H 'Accept: application/json' \
+  -H 'Cookie: zed.session=PASTE_VALUE_ONLY; __cf_bm=...' \
+  -H 'Referer: https://dashboard.zed.dev/billing'
+```
+
+If this returns JSON with `current_usage.token_spend`, the cookie is valid. HTTP 401 means sign in again and re-copy from a fresh Network request.
 
 ### Cookie settings
 
 | Setting | Default | Behavior |
 | --- | --- | --- |
 | Dashboard cookie source | **Off** | No browser Keychain prompts; token spend stays static |
-| Auto | — | Chrome-only import (`ProviderBrowserCookieDefaults.zedCookieImportOrder`) |
-| Manual | — | Paste `Cookie` header copied from DevTools on a signed-in billing page |
+| Auto | — | Multi-browser import (`ProviderBrowserCookieDefaults.defaultImportOrder`: Safari, Chrome, Firefox, Edge, …) |
+| Manual | — | Paste Request `Cookie` header from `cloud.zed.dev/frontend/billing/usage` (must include `zed.session=…`) |
 
-When enrichment succeeds, CodexBar merges live token spend into the menu card (`usageKnown: true`, source label `local+zed-dashboard`). Failures are silent — primary Keychain/cloud refresh still succeeds.
+When enrichment succeeds, CodexBar merges live token spend into the menu card (`usageKnown: true`, source label `local+zed-dashboard`). When cookies are enabled but billing fails, the menu card shows an actionable error window (`zed.token-billing-error`) and the source label becomes `local (dashboard auth failed)`.
 
 ## Snapshot mapping
 
@@ -113,15 +124,17 @@ Both `/client/users/me` and `/frontend/billing/usage` are internal Zed surfaces,
 - Re-sign in to Zed after changing `credentials_url`.
 
 ### Plan matches Zed but token spend is still static
-- Expected when **Dashboard cookie source** is **Off** (default).
-- Sign into [dashboard.zed.dev](https://dashboard.zed.dev) in Chrome, enable cookie import (Auto or Manual), and refresh.
+- Expected when **Dashboard cookie source** is **Off** (default). Token rows show neutral guidance instead of live spend.
+- Sign into [dashboard.zed.dev](https://dashboard.zed.dev) in a browser, enable cookie import (Auto or Manual), and refresh.
+- For **Manual**, copy the **Request** `Cookie` header from `cloud.zed.dev/frontend/billing/usage` in DevTools. It must include `zed.session=…`; `__cf_bm` alone is not enough.
 - Confirm DevTools shows `200` for `cloud.zed.dev/frontend/billing/usage` on the billing page.
+- If cookies are enabled but billing still fails, check the Token credits row or settings trailing text for the dashboard auth error.
 
 ## Key files
 
 - `Sources/CodexBarCore/Providers/Zed/ZedStatusProbe.swift` — Keychain read, cloud API, snapshot mapping
 - `Sources/CodexBarCore/Providers/Zed/ZedDashboardBillingFetcher.swift` — dashboard billing JSON fetch/parse
-- `Sources/CodexBarCore/Providers/Zed/ZedCookieImporter.swift` — Chrome-first dashboard cookie import
+- `Sources/CodexBarCore/Providers/Zed/ZedCookieImporter.swift` — multi-browser dashboard cookie import (`zed.session`)
 - `Sources/CodexBarCore/Providers/Zed/ZedProviderDescriptor.swift` — enriched local fetch strategy
 - `Sources/CodexBar/Providers/Zed/ZedSettingsStore.swift` — cookie settings (default Off)
 - `Sources/CodexBar/Providers/Zed/ZedProviderImplementation.swift` — settings UI

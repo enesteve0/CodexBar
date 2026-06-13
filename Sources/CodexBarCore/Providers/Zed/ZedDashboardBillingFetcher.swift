@@ -22,6 +22,7 @@ public struct ZedTokenBillingSnapshot: Sendable, Equatable {
 public enum ZedDashboardBillingError: LocalizedError, Sendable, Equatable {
     case noSessionCookie
     case invalidManualCookie
+    case missingSessionCookie
     case unauthorized
     case requestFailed(Int)
     case parseFailed(String)
@@ -29,9 +30,17 @@ public enum ZedDashboardBillingError: LocalizedError, Sendable, Equatable {
     public var errorDescription: String? {
         switch self {
         case .noSessionCookie:
-            "No Zed dashboard session found. Sign in to dashboard.zed.dev in Chrome."
+            """
+            No Zed dashboard session found. Sign in to dashboard.zed.dev in a browser, then enable Auto or paste \
+            cookies manually.
+            """
         case .invalidManualCookie:
             "The manual Zed dashboard cookie header is empty."
+        case .missingSessionCookie:
+            """
+            Cookie header must include zed.session from a signed-in dashboard.zed.dev request to \
+            cloud.zed.dev. Do not paste Set-Cookie __cf_bm lines alone.
+            """
         case .unauthorized:
             "Zed dashboard session is invalid or expired. Sign in to dashboard.zed.dev again."
         case let .requestFailed(status):
@@ -65,8 +74,14 @@ public enum ZedDashboardBillingFetcher {
             else {
                 throw ZedDashboardBillingError.invalidManualCookie
             }
+            if ZedCookieHeader.isCloudflareOnly(normalized) {
+                throw ZedDashboardBillingError.missingSessionCookie
+            }
+            guard let billingHeader = ZedCookieHeader.filteredBillingHeader(from: normalized) else {
+                throw ZedDashboardBillingError.missingSessionCookie
+            }
             return try await self.fetch(
-                cookieHeader: normalized,
+                cookieHeader: billingHeader,
                 timeout: timeout,
                 transport: transport,
                 logger: logger)
@@ -75,8 +90,11 @@ public enum ZedDashboardBillingFetcher {
             let session = try ZedCookieImporter.importSession(
                 browserDetection: browserDetection,
                 logger: logger)
+            guard let billingHeader = ZedCookieHeader.filteredBillingHeader(from: session.cookieHeader) else {
+                throw ZedDashboardBillingError.missingSessionCookie
+            }
             return try await self.fetch(
-                cookieHeader: session.cookieHeader,
+                cookieHeader: billingHeader,
                 timeout: timeout,
                 transport: transport,
                 logger: logger)

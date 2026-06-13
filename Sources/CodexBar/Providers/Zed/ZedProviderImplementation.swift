@@ -42,20 +42,35 @@ struct ZedProviderImplementation: ProviderImplementation {
                         source: context.settings.zedCookieSource,
                         keychainDisabled: context.settings.debugDisableKeychainAccess,
                         auto: """
-                        Imports dashboard.zed.dev session cookies from Chrome and fetches live token spend from \
-                        cloud.zed.dev/frontend/billing/usage.
+                        Imports zed.session from installed browsers (Safari, Chrome, Firefox, Edge, …) and fetches \
+                        live token spend from cloud.zed.dev/frontend/billing/usage.
                         """,
                         manual: """
-                        Uses a pasted dashboard.zed.dev cookie header to fetch live token spend from the undocumented \
-                        dashboard billing API.
+                        Paste the Request Cookie header from a signed-in cloud.zed.dev/frontend/billing/usage request. \
+                        It must include zed.session=….
                         """,
                         off: "Dashboard cookie access is disabled. This is the default and causes no browser prompts.")
                 },
                 binding: cookieBinding,
                 options: options,
                 isVisible: nil,
-                onChange: nil,
-                trailingText: nil),
+                onChange: { _ in
+                    await context.store.refreshProvider(.zed, allowDisabled: true)
+                },
+                trailingText: {
+                    guard context.settings.zedCookieSource != .off else { return nil }
+                    if let error = context.store.snapshot(for: .zed)?
+                        .extraRateWindows?
+                        .first(where: { $0.id == "zed.token-billing-error" })?
+                        .window.resetDescription
+                    {
+                        return error
+                    }
+                    if context.store.sourceLabel(for: .zed).contains("local+zed-dashboard") {
+                        return "Live dashboard token spend loaded."
+                    }
+                    return nil
+                }),
         ]
     }
 
@@ -66,11 +81,14 @@ struct ZedProviderImplementation: ProviderImplementation {
                 id: "zed-cookie-header",
                 title: "",
                 subtitle: """
-                Paste the Cookie request header from a signed-in dashboard.zed.dev billing page. \
-                Editor Keychain sign-in is separate.
+                1. Sign in at dashboard.zed.dev
+                2. DevTools → Network → filter billing/usage
+                3. Open the cloud.zed.dev/frontend/billing/usage request
+                4. Copy Request Headers → Cookie (must include zed.session=…)
+                5. Do not copy Response Set-Cookie lines or __cf_bm alone
                 """,
                 kind: .secure,
-                placeholder: "name=value; name2=value2",
+                placeholder: "zed.session=…; __cf_bm=…",
                 binding: context.stringBinding(\.zedCookieHeader),
                 actions: [],
                 isVisible: { context.settings.zedCookieSource == .manual },

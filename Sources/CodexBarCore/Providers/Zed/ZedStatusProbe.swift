@@ -376,7 +376,11 @@ public struct ZedStatusProbe: Sendable {
 // MARK: - UsageSnapshot mapping
 
 extension ZedUsageSnapshot {
-    public func toUsageSnapshot(tokenBilling: ZedTokenBillingSnapshot? = nil) -> UsageSnapshot {
+    public func toUsageSnapshot(
+        tokenBilling: ZedTokenBillingSnapshot? = nil,
+        dashboardCookieSource: ProviderCookieSource = .off,
+        billingError: String? = nil) -> UsageSnapshot
+    {
         let plan = self.response.plan
         let user = self.response.user
 
@@ -395,7 +399,9 @@ extension ZedUsageSnapshot {
         var extraRateWindows = Self.makeTokenBillingWindows(
             tokenBilling: tokenBilling,
             rawPlan: plan.planV3,
-            fallbackPeriodEnd: plan.subscriptionPeriod?.endedAt)
+            fallbackPeriodEnd: plan.subscriptionPeriod?.endedAt,
+            dashboardCookieSource: dashboardCookieSource,
+            billingError: billingError)
         if plan.hasOverdueInvoices {
             extraRateWindows.append(NamedRateWindow(
                 id: "zed.overdue-invoices",
@@ -426,9 +432,26 @@ extension ZedUsageSnapshot {
     private static func makeTokenBillingWindows(
         tokenBilling: ZedTokenBillingSnapshot?,
         rawPlan: String,
-        fallbackPeriodEnd: Date?) -> [NamedRateWindow]
+        fallbackPeriodEnd: Date?,
+        dashboardCookieSource: ProviderCookieSource,
+        billingError: String?) -> [NamedRateWindow]
     {
         guard let tokenBilling, let spentUSD = tokenBilling.spentUSD else {
+            if dashboardCookieSource != .off, let billingError, !billingError.isEmpty {
+                return [
+                    NamedRateWindow(
+                        id: "zed.token-billing-error",
+                        title: "Token credits",
+                        window: RateWindow(
+                            usedPercent: 0,
+                            windowMinutes: nil,
+                            resetsAt: fallbackPeriodEnd,
+                            resetDescription: billingError),
+                        usageKnown: false),
+                ]
+            }
+
+            let placeholderNote = "Sign in on dashboard or enable cookies"
             var windows = [
                 NamedRateWindow(
                     id: "zed.token-spend-note",
@@ -437,8 +460,8 @@ extension ZedUsageSnapshot {
                         usedPercent: 0,
                         windowMinutes: nil,
                         resetsAt: nil,
-                        resetDescription: "See dashboard.zed.dev billing"),
-                    usageKnown: false),
+                        resetDescription: placeholderNote),
+                    usageKnown: true),
             ]
             if let tokenCreditsLabel = Self.includedTokenCreditsLabel(for: rawPlan) {
                 windows.append(NamedRateWindow(
@@ -449,7 +472,7 @@ extension ZedUsageSnapshot {
                         windowMinutes: nil,
                         resetsAt: fallbackPeriodEnd,
                         resetDescription: tokenCreditsLabel),
-                    usageKnown: false))
+                    usageKnown: true))
             }
             return windows
         }
