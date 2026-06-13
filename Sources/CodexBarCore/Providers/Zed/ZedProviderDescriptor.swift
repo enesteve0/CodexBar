@@ -21,6 +21,7 @@ public enum ZedProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
+                browserCookieOrder: ProviderBrowserCookieDefaults.zedCookieImportOrder,
                 dashboardURL: "https://dashboard.zed.dev",
                 subscriptionDashboardURL: "https://dashboard.zed.dev",
                 statusPageURL: nil),
@@ -50,15 +51,36 @@ struct ZedLocalFetchStrategy: ProviderFetchStrategy {
         true
     }
 
-    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let probe = ZedStatusProbe()
         let snapshot = try await probe.fetch()
+        let billing = await self.fetchBilling(context: context)
         return self.makeResult(
-            usage: snapshot.toUsageSnapshot(),
-            sourceLabel: "local")
+            usage: snapshot.toUsageSnapshot(tokenBilling: billing),
+            sourceLabel: billing == nil ? "local" : "local+zed-dashboard")
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         false
+    }
+
+    private func fetchBilling(context: ProviderFetchContext) async -> ZedTokenBillingSnapshot? {
+        let settings = context.settings?.zed
+        let cookieSource = settings?.cookieSource ?? .off
+        guard cookieSource != .off else { return nil }
+
+        do {
+            return try await ZedDashboardBillingFetcher.fetch(
+                browserDetection: context.browserDetection,
+                cookieSource: cookieSource,
+                manualCookieHeader: settings?.manualCookieHeader,
+                timeout: context.webTimeout,
+                logger: context.verbose ? { print($0) } : nil)
+        } catch {
+            if context.verbose {
+                print("[zed-dashboard] Optional billing enrichment unavailable: \(error.localizedDescription)")
+            }
+            return nil
+        }
     }
 }

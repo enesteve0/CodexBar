@@ -72,7 +72,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | LiteLLM | API key + base URL → `/key/info`, then `/user/info` or `/team/info` budget usage (`api`). |
 | Deepgram | API key → project discovery and usage breakdown API (`api`). |
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
-| Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` (`local`). |
+| Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` (`local`); optional dashboard cookies → `cloud.zed.dev/frontend/billing/usage` for live token spend (experimental). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -250,8 +250,8 @@ headers, source selection, provider ordering, and token accounts are stored in `
 ## Zed
 - Reads the signed-in Zed editor session from the macOS Keychain (`credentials_url` / `https://zed.dev`).
 - Calls `GET https://cloud.zed.dev/client/users/me` for plan, billing cycle, Edit Predictions quota, and overdue invoice flag.
-- Shows static included token-credit labels from Zed docs; live token spend requires [dashboard.zed.dev](https://dashboard.zed.dev) (no public API).
-- Sign in to Zed first; no CLI usage command.
+- Optional dashboard cookies (Chrome/manual, default Off) call `GET https://cloud.zed.dev/frontend/billing/usage` for live token spend — experimental and undocumented.
+- Sign in to Zed editor first; dashboard browser login is separate for token meters.
 - Details: `docs/zed.md`.
 
 ## Augment

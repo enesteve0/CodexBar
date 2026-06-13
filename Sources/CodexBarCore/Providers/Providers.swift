@@ -260,4 +260,14 @@ public enum ProviderBrowserCookieDefaults {
         nil
         #endif
     }
+
+    /// Zed dashboard billing is normally accessed through Chrome. Keep automatic import narrow so opting in
+    /// does not probe unrelated browser keychains.
+    public static var zedCookieImportOrder: BrowserCookieImportOrder? {
+        #if os(macOS)
+        [.chrome]
+        #else
+        nil
+        #endif
+    }
 }
