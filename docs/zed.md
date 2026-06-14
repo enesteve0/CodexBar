@@ -33,7 +33,8 @@ CodexBar uses `KeychainNoUIQuery` for non-interactive reads. If Zed has never be
 
 ### Settings override
 
-Zed’s `credentials_url` setting (falls back to `server_url`) selects which Keychain entry to read. For the trusted
+CodexBar reads Zed’s user settings from `~/.config/zed/settings.json`. The `credentials_url` setting (falls back to
+`server_url`) selects which Keychain entry to read. For the trusted
 `https://zed.dev` and `https://staging.zed.dev` servers, Zed may use a separate credential identifier. Custom servers
 must use HTTPS and store credentials under the exact same `server_url`; CodexBar rejects cross-origin overrides so a
 settings-file change cannot forward a Keychain token to another host.

@@ -156,6 +156,35 @@ struct ZedStatusProbeTests {
     }
 
     @Test
+    func `uses documented zed settings path`() {
+        let expected = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/zed/settings.json")
+        #expect(ZedStatusProbe.defaultSettingsURL == expected)
+    }
+
+    @Test
+    func `loads client settings from json`() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexBar-ZedSettings-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let settingsURL = directory.appendingPathComponent("settings.json")
+        try Data(
+            """
+            {
+              "credentials_url": "zed-preview-key",
+              "server_url": "https://staging.zed.dev"
+            }
+            """.utf8)
+            .write(to: settingsURL)
+
+        let settings = try #require(ZedClientSettings.load(from: settingsURL))
+        #expect(settings.credentialsURL == "zed-preview-key")
+        #expect(settings.serverURL == "https://staging.zed.dev")
+    }
+
+    @Test
     func `maps server url independently from keychain identifier`() {
         let production = ZedClientSettings(credentialsURL: "zed-preview-key", serverURL: "https://zed.dev")
         let staging = ZedClientSettings(credentialsURL: nil, serverURL: "https://staging.zed.dev")

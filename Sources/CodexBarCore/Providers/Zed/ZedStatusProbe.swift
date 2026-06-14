@@ -329,7 +329,7 @@ public struct ZedStatusProbe: Sendable {
     public static var defaultSettingsURL: URL {
         let home = FileManager.default.homeDirectoryForCurrentUser
         return home
-            .appendingPathComponent("Library/Application Support/Zed/settings.json")
+            .appendingPathComponent(".config/zed/settings.json")
     }
 
     private static let logger = CodexBarLog.logger(LogCategories.zed)
