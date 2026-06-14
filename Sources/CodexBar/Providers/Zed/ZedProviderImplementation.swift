@@ -2,6 +2,7 @@ import AppKit
 import CodexBarCore
 import CodexBarMacroSupport
 import Foundation
+import SweetCookieKit
 import SwiftUI
 
 @ProviderImplementationRegistration
@@ -29,6 +30,8 @@ struct ZedProviderImplementation: ProviderImplementation {
         let options = ProviderCookieSourceUI.options(
             allowsOff: true,
             keychainDisabled: context.settings.debugDisableKeychainAccess)
+        let autoBrowserHint =
+            ProviderDefaults.metadata[.zed]?.browserCookieOrder?.loginHint ?? Browser.chrome.displayName
 
         return [
             ProviderSettingsPickerDescriptor(
@@ -42,7 +45,7 @@ struct ZedProviderImplementation: ProviderImplementation {
                         source: context.settings.zedCookieSource,
                         keychainDisabled: context.settings.debugDisableKeychainAccess,
                         auto: """
-                        Imports zed.session from installed browsers (Safari, Chrome, Firefox, Edge, …) and fetches \
+                        Imports zed.session from \(autoBrowserHint) and fetches \
                         live token spend from cloud.zed.dev/frontend/billing/usage.
                         """,
                         manual: """

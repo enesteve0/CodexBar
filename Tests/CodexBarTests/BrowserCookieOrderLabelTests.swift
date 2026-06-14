@@ -69,5 +69,11 @@ struct BrowserCookieOrderStatusStringTests {
         #expect(ProviderDefaults.metadata[.copilot]?.browserCookieOrder == [.chrome])
         #expect(ProviderBrowserCookieDefaults.copilotCookieImportOrder == [.chrome])
     }
+
+    @Test
+    func `zed cookie imports default to chrome only`() {
+        #expect(ProviderDefaults.metadata[.zed]?.browserCookieOrder == [.chrome])
+        #expect(ProviderBrowserCookieDefaults.zedCookieImportOrder == [.chrome])
+    }
     #endif
 }

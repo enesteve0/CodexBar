@@ -78,7 +78,7 @@ If this returns JSON with `current_usage.token_spend`, the cookie is valid. HTTP
 | Setting | Default | Behavior |
 | --- | --- | --- |
 | Dashboard cookie source | **Off** | No browser Keychain prompts; token spend stays static |
-| Auto | — | Multi-browser import (`ProviderBrowserCookieDefaults.defaultImportOrder`: Safari, Chrome, Firefox, Edge, …) |
+| Auto | — | Imports the Zed dashboard session from Chrome only |
 | Manual | — | Paste Request `Cookie` header from `cloud.zed.dev/frontend/billing/usage` (must include `zed.session=…`) |
 
 When enrichment succeeds, CodexBar merges live token spend into the menu card (`usageKnown: true`, source label `local+zed-dashboard`). When cookies are enabled but billing fails, the menu card shows an actionable error window (`zed.token-billing-error`) and the source label becomes `local (dashboard auth failed)`.
