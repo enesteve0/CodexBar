@@ -24,7 +24,7 @@ Authorization: {user_id} {access_token}
 
 | Item | Value |
 | --- | --- |
-| Service URL | `https://zed.dev` by default, or custom `credentials_url` from `~/Library/Application Support/Zed/settings.json` |
+| Service URL | `https://zed.dev` by default, or the configured HTTPS `server_url` for a custom server |
 | Keychain class | **Internet password** (`kSecClassInternetPassword`, server = service URL). Generic-password fallback is supported for older layouts. |
 | Account | Zed user ID (string) |
 | Secret | Access token (UTF-8 bytes) |
@@ -33,7 +33,10 @@ CodexBar uses `KeychainNoUIQuery` for non-interactive reads. If Zed has never be
 
 ### Settings override
 
-Zed’s `credentials_url` setting (falls back to `server_url`) selects which Keychain entry to read. This supports side-by-side Zed installs with different user data directories.
+Zed’s `credentials_url` setting (falls back to `server_url`) selects which Keychain entry to read. For the trusted
+`https://zed.dev` and `https://staging.zed.dev` servers, Zed may use a separate credential identifier. Custom servers
+must use HTTPS and store credentials under the exact same `server_url`; CodexBar rejects cross-origin overrides so a
+settings-file change cannot forward a Keychain token to another host.
 
 ## Phase 2 — Dashboard token billing (experimental)
 
