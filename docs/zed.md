@@ -137,7 +137,7 @@ Both `/client/users/me` and `/frontend/billing/usage` are internal Zed surfaces,
 
 - `Sources/CodexBarCore/Providers/Zed/ZedStatusProbe.swift` — Keychain read, cloud API, snapshot mapping
 - `Sources/CodexBarCore/Providers/Zed/ZedDashboardBillingFetcher.swift` — dashboard billing JSON fetch/parse
-- `Sources/CodexBarCore/Providers/Zed/ZedCookieImporter.swift` — multi-browser dashboard cookie import (`zed.session`)
+- `Sources/CodexBarCore/Providers/Zed/ZedCookieImporter.swift` — Chrome dashboard cookie import (`zed.session`)
 - `Sources/CodexBarCore/Providers/Zed/ZedProviderDescriptor.swift` — enriched local fetch strategy
 - `Sources/CodexBar/Providers/Zed/ZedSettingsStore.swift` — cookie settings (default Off)
 - `Sources/CodexBar/Providers/Zed/ZedProviderImplementation.swift` — settings UI
