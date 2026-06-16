@@ -33,7 +33,6 @@ public struct ProviderSettingsSnapshot: Sendable {
         ollama: OllamaProviderSettings? = nil,
         jetbrains: JetBrainsProviderSettings? = nil,
         windsurf: WindsurfProviderSettings? = nil,
-        zed: ZedProviderSettings? = nil,
         perplexity: PerplexityProviderSettings? = nil,
         mimo: MiMoProviderSettings? = nil,
         abacus: AbacusProviderSettings? = nil,
@@ -65,7 +64,6 @@ public struct ProviderSettingsSnapshot: Sendable {
             ollama: ollama,
             jetbrains: jetbrains,
             windsurf: windsurf,
-            zed: zed,
             perplexity: perplexity,
             mimo: mimo,
             abacus: abacus,
@@ -135,16 +133,6 @@ public struct ProviderSettingsSnapshot: Sendable {
         public let manualCookieHeader: String?
 
         public init(cookieSource: ProviderCookieSource, manualCookieHeader: String?) {
-            self.cookieSource = cookieSource
-            self.manualCookieHeader = manualCookieHeader
-        }
-    }
-
-    public struct ZedProviderSettings: Sendable {
-        public let cookieSource: ProviderCookieSource
-        public let manualCookieHeader: String?
-
-        public init(cookieSource: ProviderCookieSource = .off, manualCookieHeader: String? = nil) {
             self.cookieSource = cookieSource
             self.manualCookieHeader = manualCookieHeader
         }
@@ -455,7 +443,6 @@ public struct ProviderSettingsSnapshot: Sendable {
     public let ollama: OllamaProviderSettings?
     public let jetbrains: JetBrainsProviderSettings?
     public let windsurf: WindsurfProviderSettings?
-    public let zed: ZedProviderSettings?
     public let perplexity: PerplexityProviderSettings?
     public let mimo: MiMoProviderSettings?
     public let abacus: AbacusProviderSettings?
@@ -492,7 +479,6 @@ public struct ProviderSettingsSnapshot: Sendable {
         ollama: OllamaProviderSettings?,
         jetbrains: JetBrainsProviderSettings? = nil,
         windsurf: WindsurfProviderSettings? = nil,
-        zed: ZedProviderSettings? = nil,
         perplexity: PerplexityProviderSettings? = nil,
         mimo: MiMoProviderSettings? = nil,
         abacus: AbacusProviderSettings? = nil,
@@ -524,7 +510,6 @@ public struct ProviderSettingsSnapshot: Sendable {
         self.ollama = ollama
         self.jetbrains = jetbrains
         self.windsurf = windsurf
-        self.zed = zed
         self.perplexity = perplexity
         self.mimo = mimo
         self.abacus = abacus
@@ -557,7 +542,6 @@ public enum ProviderSettingsSnapshotContribution: Sendable {
     case ollama(ProviderSettingsSnapshot.OllamaProviderSettings)
     case jetbrains(ProviderSettingsSnapshot.JetBrainsProviderSettings)
     case windsurf(ProviderSettingsSnapshot.WindsurfProviderSettings)
-    case zed(ProviderSettingsSnapshot.ZedProviderSettings)
     case perplexity(ProviderSettingsSnapshot.PerplexityProviderSettings)
     case mimo(ProviderSettingsSnapshot.MiMoProviderSettings)
     case abacus(ProviderSettingsSnapshot.AbacusProviderSettings)
@@ -591,7 +575,6 @@ public struct ProviderSettingsSnapshotBuilder: Sendable {
     public var ollama: ProviderSettingsSnapshot.OllamaProviderSettings?
     public var jetbrains: ProviderSettingsSnapshot.JetBrainsProviderSettings?
     public var windsurf: ProviderSettingsSnapshot.WindsurfProviderSettings?
-    public var zed: ProviderSettingsSnapshot.ZedProviderSettings?
     public var perplexity: ProviderSettingsSnapshot.PerplexityProviderSettings?
     public var mimo: ProviderSettingsSnapshot.MiMoProviderSettings?
     public var abacus: ProviderSettingsSnapshot.AbacusProviderSettings?
@@ -629,7 +612,6 @@ public struct ProviderSettingsSnapshotBuilder: Sendable {
         case let .ollama(value): self.ollama = value
         case let .jetbrains(value): self.jetbrains = value
         case let .windsurf(value): self.windsurf = value
-        case let .zed(value): self.zed = value
         case let .perplexity(value): self.perplexity = value
         case let .mimo(value): self.mimo = value
         case let .abacus(value): self.abacus = value
@@ -665,7 +647,6 @@ public struct ProviderSettingsSnapshotBuilder: Sendable {
             ollama: self.ollama,
             jetbrains: self.jetbrains,
             windsurf: self.windsurf,
-            zed: self.zed,
             perplexity: self.perplexity,
             mimo: self.mimo,
             abacus: self.abacus,

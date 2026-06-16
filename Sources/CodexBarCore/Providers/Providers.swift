@@ -260,14 +260,4 @@ public enum ProviderBrowserCookieDefaults {
         nil
         #endif
     }
-
-    /// Zed dashboard sessions are normally in Chrome. Keep automatic import narrow so live probes do not
-    /// touch unrelated browser keychains; users can select another browser explicitly.
-    public static var zedCookieImportOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome]
-        #else
-        nil
-        #endif
-    }
 }

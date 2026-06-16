@@ -1,9 +1,8 @@
-import CodexBarMacroSupport
 import Foundation
 
-@ProviderDescriptorRegistration
-@ProviderDescriptorDefinition
 public enum ZedProviderDescriptor {
+    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .zed,
@@ -21,9 +20,7 @@ public enum ZedProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: ProviderBrowserCookieDefaults.zedCookieImportOrder,
-                dashboardURL: "https://dashboard.zed.dev",
-                subscriptionDashboardURL: "https://dashboard.zed.dev",
+                dashboardURL: nil,
                 statusPageURL: nil),
             branding: ProviderBranding(
                 iconStyle: .zed,
@@ -52,58 +49,12 @@ struct ZedLocalFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let probe = ZedStatusProbe()
-        let snapshot = try await probe.fetch()
-        let cookieSource = context.settings?.zed?.cookieSource ?? .off
-        let billing = try await self.fetchBilling(context: context)
-        let usage = snapshot.toUsageSnapshot(
-            tokenBilling: billing.snapshot,
-            dashboardCookieSource: cookieSource,
-            billingError: billing.errorMessage)
-        let sourceLabel = if billing.snapshot != nil {
-            "local+zed-dashboard"
-        } else if cookieSource != .off, billing.errorMessage != nil {
-            "local (dashboard auth failed)"
-        } else {
-            "local"
-        }
-        return self.makeResult(usage: usage, sourceLabel: sourceLabel)
+        _ = context
+        let snapshot = try await ZedStatusProbe().fetch()
+        return self.makeResult(usage: snapshot.toUsageSnapshot(), sourceLabel: "local")
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         false
-    }
-
-    private struct BillingFetchOutcome {
-        let snapshot: ZedTokenBillingSnapshot?
-        let errorMessage: String?
-    }
-
-    private func fetchBilling(context: ProviderFetchContext) async throws -> BillingFetchOutcome {
-        let settings = context.settings?.zed
-        let cookieSource = settings?.cookieSource ?? .off
-        guard cookieSource != .off else {
-            return BillingFetchOutcome(snapshot: nil, errorMessage: nil)
-        }
-
-        do {
-            let snapshot = try await ZedDashboardBillingFetcher.fetch(
-                browserDetection: context.browserDetection,
-                cookieSource: cookieSource,
-                manualCookieHeader: settings?.manualCookieHeader,
-                timeout: context.webTimeout,
-                logger: context.verbose ? { print($0) } : nil)
-            return BillingFetchOutcome(snapshot: snapshot, errorMessage: nil)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
-            throw CancellationError()
-        } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            if context.verbose {
-                print("[zed-dashboard] Billing enrichment failed: \(message)")
-            }
-            return BillingFetchOutcome(snapshot: nil, errorMessage: message)
-        }
     }
 }

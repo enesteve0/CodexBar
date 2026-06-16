@@ -95,41 +95,17 @@ struct ZedStatusProbeTests {
         #expect(snapshot.primary?.resetDescription == "10 / 20 predictions")
         #expect(snapshot.primary?.usedPercent == 50)
         #expect(snapshot.secondary?.resetsAt != nil)
-        #expect(snapshot.extraRateWindows?.contains(where: { $0.id == "zed.token-spend-note" }) == true)
-        #expect(snapshot.extraRateWindows?.contains(where: { $0.id == "zed.token-credits" }) == false)
+        #expect(snapshot.extraRateWindows == nil)
     }
 
     @Test
-    func `maps pro plan with static token credit label`() throws {
+    func `maps pro plan with unlimited edit predictions`() throws {
         let response = try ZedStatusProbe.parseResponse(Self.fixture(plan: "zed_pro", used: 0, limit: "\"unlimited\""))
         let snapshot = ZedUsageSnapshot(response: response).toUsageSnapshot()
 
         #expect(snapshot.identity?.loginMethod == "Zed Pro")
         #expect(snapshot.primary?.resetDescription == "Unlimited")
-        #expect(snapshot.extraRateWindows?.contains(where: { $0.id == "zed.token-credits" }) == true)
-        #expect(snapshot.extraRateWindows?.first(where: { $0.id == "zed.token-credits" })?.window.resetDescription?
-            .contains("$5 included") == true)
-    }
-
-    @Test
-    func `maps student and trial included credit labels`() throws {
-        let student = try ZedStatusProbe.parseResponse(Self.fixture(plan: "zed_student", used: 2, limit: "25"))
-        let trial = try ZedStatusProbe.parseResponse(Self.fixture(
-            plan: "zed_pro_trial",
-            used: 0,
-            limit: "\"unlimited\""))
-
-        let studentCredits = ZedUsageSnapshot(response: student).toUsageSnapshot()
-            .extraRateWindows?
-            .first(where: { $0.id == "zed.token-credits" })?
-            .window.resetDescription
-        let trialCredits = ZedUsageSnapshot(response: trial).toUsageSnapshot()
-            .extraRateWindows?
-            .first(where: { $0.id == "zed.token-credits" })?
-            .window.resetDescription
-
-        #expect(studentCredits?.contains("$10 included") == true)
-        #expect(trialCredits?.contains("$20 trial credits") == true)
+        #expect(snapshot.extraRateWindows == nil)
     }
 
     @Test

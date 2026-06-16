@@ -139,7 +139,7 @@ public enum ZedStatusProbeError: LocalizedError, Sendable, Equatable {
         case .notSupported:
             "Zed is only supported on macOS."
         case .notSignedIn:
-            "Not signed in to Zed. Sign in from the Zed editor app (GitHub), not just the browser dashboard."
+            "Not signed in to Zed. Sign in from the Zed editor app with GitHub."
         case .keychainUnavailable:
             "Could not read Zed credentials from the Keychain. Grant CodexBar Keychain access or sign in to Zed again."
         case let .invalidServerURL(value):
@@ -372,10 +372,6 @@ public struct ZedStatusProbe: Sendable {
         return ZedUsageSnapshot(response: response)
     }
 
-    public func fetchAuthenticatedUser(credentials: ZedCredentials) async throws -> ZedAuthenticatedUserResponse {
-        try await self.fetchAuthenticatedUser(credentials: credentials, apiURL: Self.cloudAPIURL)
-    }
-
     private func fetchAuthenticatedUser(
         credentials: ZedCredentials,
         apiURL: URL) async throws -> ZedAuthenticatedUserResponse
@@ -441,11 +437,7 @@ public struct ZedStatusProbe: Sendable {
 // MARK: - UsageSnapshot mapping
 
 extension ZedUsageSnapshot {
-    public func toUsageSnapshot(
-        tokenBilling: ZedTokenBillingSnapshot? = nil,
-        dashboardCookieSource: ProviderCookieSource = .off,
-        billingError: String? = nil) -> UsageSnapshot
-    {
+    public func toUsageSnapshot() -> UsageSnapshot {
         let plan = self.response.plan
         let user = self.response.user
 
@@ -461,12 +453,7 @@ extension ZedUsageSnapshot {
                 resetDescription: Self.formatResetDescription(period.endedAt))
         }
 
-        var extraRateWindows = Self.makeTokenBillingWindows(
-            tokenBilling: tokenBilling,
-            rawPlan: plan.planV3,
-            fallbackPeriodEnd: plan.subscriptionPeriod?.endedAt,
-            dashboardCookieSource: dashboardCookieSource,
-            billingError: billingError)
+        var extraRateWindows: [NamedRateWindow] = []
         if plan.hasOverdueInvoices {
             extraRateWindows.append(NamedRateWindow(
                 id: "zed.overdue-invoices",
@@ -492,102 +479,6 @@ extension ZedUsageSnapshot {
             subscriptionRenewsAt: plan.subscriptionPeriod?.endedAt,
             updatedAt: self.updatedAt,
             identity: identity)
-    }
-
-    private static func makeTokenBillingWindows(
-        tokenBilling: ZedTokenBillingSnapshot?,
-        rawPlan: String,
-        fallbackPeriodEnd: Date?,
-        dashboardCookieSource: ProviderCookieSource,
-        billingError: String?) -> [NamedRateWindow]
-    {
-        guard let tokenBilling, let spentUSD = tokenBilling.spentUSD else {
-            if dashboardCookieSource != .off, let billingError, !billingError.isEmpty {
-                return [
-                    NamedRateWindow(
-                        id: "zed.token-billing-error",
-                        title: "Token credits",
-                        window: RateWindow(
-                            usedPercent: 0,
-                            windowMinutes: nil,
-                            resetsAt: fallbackPeriodEnd,
-                            resetDescription: billingError),
-                        usageKnown: false),
-                ]
-            }
-
-            let placeholderNote = "Sign in on dashboard or enable cookies"
-            var windows = [
-                NamedRateWindow(
-                    id: "zed.token-spend-note",
-                    title: "Token spend",
-                    window: RateWindow(
-                        usedPercent: 0,
-                        windowMinutes: nil,
-                        resetsAt: nil,
-                        resetDescription: placeholderNote),
-                    usageKnown: true),
-            ]
-            if let tokenCreditsLabel = Self.includedTokenCreditsLabel(for: rawPlan) {
-                windows.append(NamedRateWindow(
-                    id: "zed.token-credits",
-                    title: "Token credits",
-                    window: RateWindow(
-                        usedPercent: 0,
-                        windowMinutes: nil,
-                        resetsAt: fallbackPeriodEnd,
-                        resetDescription: tokenCreditsLabel),
-                    usageKnown: true))
-            }
-            return windows
-        }
-
-        let includedUSD = tokenBilling.includedUSD ?? Self.includedTokenCreditsUSD(for: rawPlan)
-        let totalLimit = Self.billingDenominator(
-            includedUSD: includedUSD,
-            spendLimitUSD: tokenBilling.spendLimitUSD)
-        let usedPercent = totalLimit.map { max(0, min(100, spentUSD / $0 * 100)) } ?? 0
-
-        return [
-            NamedRateWindow(
-                id: "zed.token-credits",
-                title: "Token credits",
-                window: RateWindow(
-                    usedPercent: usedPercent,
-                    windowMinutes: nil,
-                    resetsAt: tokenBilling.periodEnd ?? fallbackPeriodEnd,
-                    resetDescription: Self.billingDescription(
-                        spentUSD: spentUSD,
-                        includedUSD: includedUSD,
-                        totalLimitUSD: totalLimit)),
-                usageKnown: true),
-        ]
-    }
-
-    private static func billingDenominator(includedUSD: Double?, spendLimitUSD: Double?) -> Double? {
-        let candidates = [includedUSD, spendLimitUSD]
-            .compactMap(\.self)
-            .filter { $0 > 0 }
-        return candidates.max()
-    }
-
-    private static func billingDescription(
-        spentUSD: Double,
-        includedUSD: Double?,
-        totalLimitUSD: Double?) -> String
-    {
-        let spent = Self.formatUSD(spentUSD)
-        if let includedUSD, totalLimitUSD == includedUSD {
-            return "\(spent) of \(Self.formatUSD(includedUSD)) included"
-        }
-        if let totalLimitUSD {
-            return "\(spent) / \(Self.formatUSD(totalLimitUSD))"
-        }
-        return "\(spent) spent"
-    }
-
-    private static func formatUSD(_ value: Double) -> String {
-        String(format: "$%.2f", locale: Locale(identifier: "en_US_POSIX"), value)
     }
 
     private static func makeEditPredictionsWindow(used: Int, limit: ZedUsageLimit) -> RateWindow? {
@@ -625,28 +516,6 @@ extension ZedUsageSnapshot {
                     word.prefix(1).uppercased() + word.dropFirst().lowercased()
                 }
                 .joined(separator: " ")
-        }
-    }
-
-    static func includedTokenCreditsLabel(for rawPlan: String) -> String? {
-        switch rawPlan.lowercased() {
-        case "zed_pro":
-            "$5 included · live spend on dashboard"
-        case "zed_student":
-            "$10 included · live spend on dashboard"
-        case "zed_pro_trial":
-            "$20 trial credits · live spend on dashboard"
-        default:
-            nil
-        }
-    }
-
-    private static func includedTokenCreditsUSD(for rawPlan: String) -> Double? {
-        switch rawPlan.lowercased() {
-        case "zed_pro": 5
-        case "zed_student": 10
-        case "zed_pro_trial": 20
-        default: nil
         }
     }
 

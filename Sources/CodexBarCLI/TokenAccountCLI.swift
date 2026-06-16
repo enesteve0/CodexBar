@@ -198,11 +198,6 @@ struct TokenAccountCLIContext {
             return self.makeSnapshot(abacus: self.makeProviderCookieSettings(cookieSettings))
         case .mistral:
             return self.makeSnapshot(mistral: self.makeProviderCookieSettings(cookieSettings))
-        case .zed:
-            return self.makeSnapshot(
-                zed: ProviderSettingsSnapshot.ZedProviderSettings(
-                    cookieSource: cookieSettings.cookieSource,
-                    manualCookieHeader: cookieSettings.manualCookieHeader))
         case .stepfun:
             let stepfunSettings = self.cookieSettings(
                 provider: provider,
@@ -239,8 +234,6 @@ struct TokenAccountCLIContext {
         amp: ProviderSettingsSnapshot.AmpProviderSettings? = nil,
         ollama: ProviderSettingsSnapshot.OllamaProviderSettings? = nil,
         jetbrains: ProviderSettingsSnapshot.JetBrainsProviderSettings? = nil,
-        windsurf: ProviderSettingsSnapshot.WindsurfProviderSettings? = nil,
-        zed: ProviderSettingsSnapshot.ZedProviderSettings? = nil,
         perplexity: ProviderSettingsSnapshot.PerplexityProviderSettings? = nil,
         mimo: ProviderSettingsSnapshot.MiMoProviderSettings? = nil,
         abacus: ProviderSettingsSnapshot.AbacusProviderSettings? = nil,
@@ -266,7 +259,6 @@ struct TokenAccountCLIContext {
             amp: amp,
             ollama: ollama,
             jetbrains: jetbrains,
-            zed: zed,
             perplexity: perplexity,
             mimo: mimo,
             abacus: abacus,
